@@ -6,6 +6,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -23,9 +24,28 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
+        // cors 사용 X 모든 요청 허용 **
+        // @CrossOrigin과의 차이점 : @CrossOrigin은 인증이 없을 때 문제, 그래서 직접 시큐리티 필터에 등록!
         http.
-                csrf().disable()
-                .authorizeRequests(authorizeRequests ->
+                cors(cors -> cors
+                .configurationSource(CorsConfig.apiConfigurationSource()));
+        // csrf 비활성화
+        http.
+                csrf().disable();
+        // fromLogin 비활성화
+        http
+                .formLogin().disable();
+        // httpBasic 인증방식 비활성화
+        http
+                .httpBasic().disable();
+
+        // Session을 사용하지 않고, Stateless 서버를 만듬.
+        http.
+                 sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+        http.
+                authorizeRequests(authorizeRequests ->
                         authorizeRequests
                                 .antMatchers("/user/**").authenticated()
                                 .antMatchers("/manager/**").access("hasRole('ROLE_ADMIN') or hasRole('ROLE_MANAGER')")

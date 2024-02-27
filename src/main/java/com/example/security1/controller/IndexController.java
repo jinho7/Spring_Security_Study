@@ -62,5 +62,4 @@ public class IndexController {
 		return "redirect:/loginForm";
 	}
 
-
 }
