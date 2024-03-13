@@ -2,12 +2,14 @@ package com.example.security1.controller;
 
 import com.example.security1.entity.User;
 import com.example.security1.repository.UserRepository;
+import com.example.security1.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller // view를 리턴하겠다
@@ -18,6 +20,7 @@ public class IndexController {
 
 	@Autowired
 	private BCryptPasswordEncoder bCryptPasswordEncoder;
+
 
     // localhost:8080
     @GetMapping({"/"})
@@ -53,7 +56,7 @@ public class IndexController {
 	}
 
 	@PostMapping("/join")
-	public String join(User user) {
+	public String join(@RequestBody User user) {
 		user.setRole("ROLE_USER");
 		String rawPassword = user.getPassword();
 		String encPassword = bCryptPasswordEncoder.encode(rawPassword);

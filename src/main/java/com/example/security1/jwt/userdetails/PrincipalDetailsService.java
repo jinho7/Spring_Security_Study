@@ -1,29 +1,34 @@
-package com.example.security1.config.auth;
+package com.example.security1.jwt.userdetails;
 
 import com.example.security1.entity.User;
 import com.example.security1.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.sql.SQLOutput;
 import java.util.Optional;
 
-// 시큐리티 설정에서 loginProcessingUrl("/login"); 걸어놓음
-// login 요청이 오면 자동으로 UserDetailsService 타입으로 IoC 되어 있는 loadUserByUsername 함수가 실행된다.
+// formLogin 꺼놔서, http://localhost:8080/login 요청이 올 때 이 PrincipalDetailsService가 동작한다!
 @Service
+@RequiredArgsConstructor
 public class PrincipalDetailsService implements UserDetailsService {
 
-    @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    public PrincipalDetailsService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        System.out.println("username : "+ username);
+
         Optional<User> userEntity = userRepository.findByUsername(username);
         if (userEntity.isPresent()) {
+            System.out.println(userEntity);
             return new PrincipalDetails(userEntity.get());
         }
         throw new UsernameNotFoundException("User not found with username: " + username);

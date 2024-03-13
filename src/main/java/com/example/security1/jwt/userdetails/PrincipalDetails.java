@@ -1,4 +1,4 @@
-package com.example.security1.config.auth;
+package com.example.security1.jwt.userdetails;
 
 // Security가 /login 주소 요청이 오면, 낚아채서 로그인 진행
 // 로그인 완료 후 Security Session을 만들어준다! ("Security ContextHolder"에 Session을 저장.)
@@ -10,10 +10,11 @@ package com.example.security1.config.auth;
 
 import com.example.security1.entity.User;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.stream.Collectors;
 
 public class PrincipalDetails implements UserDetails {
 
@@ -23,18 +24,17 @@ public class PrincipalDetails implements UserDetails {
         this.user = user;
     }
 
+    public User getUser() {
+        return user;
+    }
+
+
     // 해당 User의 권한을 리턴 하는 곳
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        Collection<GrantedAuthority> collect = new ArrayList<>();
-        collect.add(new GrantedAuthority() {
-            @Override
-            public String getAuthority() {
-                return user.getRole();
-            }
-        });
-
-        return collect;
+        return user.getRoleList().stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
     }
 
     @Override
