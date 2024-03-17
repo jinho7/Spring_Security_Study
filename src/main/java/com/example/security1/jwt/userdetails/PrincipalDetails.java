@@ -9,6 +9,7 @@ package com.example.security1.jwt.userdetails;
 // Security Session -> Authentication -> User Detatils (Principal Details)
 
 import com.example.security1.entity.User;
+import lombok.Getter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -16,16 +17,13 @@ import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Collection;
 import java.util.stream.Collectors;
 
+@Getter
 public class PrincipalDetails implements UserDetails {
 
     private User user;
 
     public PrincipalDetails(User user) {
         this.user = user;
-    }
-
-    public User getUser() {
-        return user;
     }
 
 

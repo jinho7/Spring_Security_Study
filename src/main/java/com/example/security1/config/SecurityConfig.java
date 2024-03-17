@@ -1,6 +1,8 @@
 package com.example.security1.config;
 
 import com.example.security1.jwt.filter.JwtAuthenticationFilter;
+import com.example.security1.jwt.filter.JwtAuthorizationFilter;
+import com.example.security1.jwt.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,6 +25,7 @@ import static org.springframework.security.config.Customizer.withDefaults;
 public class SecurityConfig {
 
     private final AuthenticationConfiguration authenticationConfiguration;
+    private final JwtUtil jwtUtil;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -36,7 +39,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
 
         // cors 비활성화
         http.
@@ -58,7 +60,11 @@ public class SecurityConfig {
 
         // Jwt Filter
         http
-                .addFilter(new JwtAuthenticationFilter(authenticationManager(authenticationConfiguration)));
+                .addFilter(new JwtAuthenticationFilter(authenticationManager(authenticationConfiguration), jwtUtil));
+//        http
+//                .addFilter(new JwtAuthorizationFilter(authenticationManager(authenticationConfiguration)));
+
+
 
         // 경로별 인가
         http.

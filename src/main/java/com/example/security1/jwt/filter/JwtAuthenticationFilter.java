@@ -2,14 +2,20 @@ package com.example.security1.jwt.filter;
 
 import com.example.security1.dto.LoginRequestDto;
 import com.example.security1.entity.User;
+import com.example.security1.execption.ApiResponse;
+import com.example.security1.jwt.dto.JwtDto;
 import com.example.security1.jwt.userdetails.PrincipalDetails;
+import com.example.security1.jwt.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import io.jsonwebtoken.Jwt;
+import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.security.authentication.*;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 import javax.servlet.FilterChain;
@@ -24,18 +30,19 @@ import java.util.Date;
 // /login 요청해서 username,password 전송하면 (POST)
 // UsernamePasswordAuthenticationFilter 필터가 작동함
 
+@Slf4j
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 
     private final AuthenticationManager authenticationManager;
+    private final JwtUtil jwtUtil;
 
     // /login 요청을 하면, 로그인 시도를 위해서 실행되는 함수
     @Override
     public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse response)
             throws AuthenticationException {
-        System.out.println("JwtAuthenticationFilter : 로그인 시도 중");
+        log.info("JwtAuthenticationFilter : 로그인 시도 중");
 
-        // 1. username, password 받아서
         try {
             ObjectMapper om = new ObjectMapper();
             User user = om.readValue(request.getInputStream(), User.class);
@@ -43,62 +50,21 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             UsernamePasswordAuthenticationToken authenticationToken =
                     new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword());
 
-            // PrincipalDetailsService의 loadUserByUsername() 함수가 실행된다.
+            // PrincipalDetailsService의 loadUserByUsername() 함수가 실행되고 정상이면 authentication이 return됨.
             // Token 넣어서 던져서 인증 끝나면 authentication을 주고, 로그인 한 정보가 담긴다.
+            // DB에 있는 username과 password가 일치한다는 뜻
             Authentication authentication =
                     authenticationManager.authenticate(authenticationToken);
 
-            // authentication 객체가 session에 저장. -> 로그인이 되었다는 이야기
+            // Testcode
             PrincipalDetails principalDetails = (PrincipalDetails) authentication.getPrincipal();
-            System.out.println(principalDetails.getUser().getUsername());
+            log.info("로그인 완료 : " + principalDetails.getUser().getUsername());
 
             return authentication;
 
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
-
-
-//
-//        // request에 있는 username과 password를 파싱해서 자바 Object로 받기
-//        ObjectMapper om = new ObjectMapper();
-//        LoginRequestDto loginRequestDto = null;
-//        try {
-//            loginRequestDto = om.readValue(request.getInputStream(), LoginRequestDto.class);
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//
-//        System.out.println("JwtAuthenticationFilter : "+loginRequestDto);
-//
-//        // 유저네임패스워드 토큰 생성
-//        UsernamePasswordAuthenticationToken authenticationToken =
-//                new UsernamePasswordAuthenticationToken(
-//                        loginRequestDto.getUsername(),
-//                        loginRequestDto.getPassword());
-//
-//        System.out.println("JwtAuthenticationFilter : 토큰생성완료");
-//
-//        // authenticate() 함수가 호출 되면 인증 프로바이더가 유저 디테일 서비스의
-//        // loadUserByUsername(토큰의 첫번째 파라메터) 를 호출하고
-//        // UserDetails를 리턴받아서 토큰의 두번째 파라메터(credential)과
-//        // UserDetails(DB값)의 getPassword()함수로 비교해서 동일하면
-//        // Authentication 객체를 만들어서 필터체인으로 리턴해준다.
-//
-//        // Tip: 인증 프로바이더의 디폴트 서비스는 UserDetailsService 타입
-//        // Tip: 인증 프로바이더의 디폴트 암호화 방식은 BCryptPasswordEncoder
-//        // 결론은 인증 프로바이더에게 알려줄 필요가 없음.
-//        Authentication authentication =
-//                authenticationManager.authenticate(authenticationToken);
-//
-//        PrincipalDetails principalDetailis = (PrincipalDetails) authentication.getPrincipal();
-//        System.out.println("Authentication : " + principalDetailis.getUser().getUsername()); // 로그인이 정상적으로 되었다.
-//
-//        // authenticaition 객체가 session 영역에 저장 해야하고, 그 방법 - return 해주면 저장됨.
-//        // Return의 이유는 경로별 권한 관리를 security 가 대신 해주기 때문에 편하려고 하는거
-//        // 굳이 JWT 토큰을 사용하면서 세션을 만들 이유는 없음.
-//        return authentication;
 
     }
 
@@ -108,17 +74,59 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
                                             Authentication authResult) throws IOException, ServletException {
 
-        PrincipalDetails principalDetailis = (PrincipalDetails) authResult.getPrincipal();
+        PrincipalDetails principalDetails = (PrincipalDetails) authResult.getPrincipal();
 
-//        // 리프레시 토큰, 엑세스 토큰으로 나눠서 제작
-//        String jwtToken = JWT.create()
-//                .withSubject(principalDetailis.getUsername())
-//                .withExpiresAt(new Date(System.currentTimeMillis()+JwtProperties.EXPIRATION_TIME))
-//                .withClaim("id", principalDetailis.getUser().getId())
-//                .withClaim("username", principalDetailis.getUser().getUsername())
-//                .sign(Algorithm.HMAC512(JwtProperties.SECRET));
-//
-//        response.addHeader(JwtProperties.HEADER_STRING, JwtProperties.TOKEN_PREFIX+jwtToken);
+        log.info("[*] Login Success! - Login with " + principalDetails.getUser().getUsername());
+        JwtDto jwtDto = new JwtDto(
+                jwtUtil.createJwtAccessToken(principalDetails),
+                jwtUtil.createJwtRefreshToken(principalDetails)
+        );
+
+        log.info("Access Token: " + jwtDto.getAccessToken());
+        log.info("Refresh Token: " + jwtDto.getRefreshToken());
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        String responseBody = objectMapper.writeValueAsString(ApiResponse.onSuccess(jwtDto));
+
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setStatus(HttpStatus.CREATED.value());
+        response.setCharacterEncoding("UTF-8");
+        response.getWriter().write(responseBody);
+    }
+
+    @Override
+    protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response, AuthenticationException failed)
+            throws IOException {
+
+        // 실패한 인증에 따라 적절한 오류 메시지 설정
+        String errorMessage;
+        if (failed instanceof BadCredentialsException) {
+            errorMessage = "Bad credentials";
+        } else if (failed instanceof LockedException) {
+            errorMessage = "Account is locked";
+        } else if (failed instanceof DisabledException) {
+            errorMessage = "Account is disabled";
+        } else if (failed instanceof UsernameNotFoundException) {
+            errorMessage = "Account not found";
+        } else if (failed instanceof AuthenticationServiceException) {
+            errorMessage = "Error occurred while parsing request body";
+        } else {
+            errorMessage = "Authentication failed";
+        }
+        log.info("[*] Login Fail - " + errorMessage);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+
+        // 응답 보내기
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getOutputStream(), ApiResponse.onFailure(
+                HttpStatus.BAD_REQUEST.name(),
+                errorMessage,
+                null
+        ));
+
     }
 
 }

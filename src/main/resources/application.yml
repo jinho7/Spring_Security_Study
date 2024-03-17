@@ -25,3 +25,14 @@ spring:
       naming:
         physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
     show-sql: true
+
+
+  jwt:
+    secret: testSecretKey20240316testSecretKey20240316testSecretKey20240316
+    token:
+      access-expiration-time: 3600000
+      refresh-expiration-time: 86400000
+
+  redis:
+    host: localhost
+    port: 6379

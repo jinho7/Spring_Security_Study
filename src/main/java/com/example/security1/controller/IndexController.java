@@ -58,9 +58,7 @@ public class IndexController {
 	@PostMapping("/join")
 	public String join(@RequestBody User user) {
 		user.setRole("ROLE_USER");
-		String rawPassword = user.getPassword();
-		String encPassword = bCryptPasswordEncoder.encode(rawPassword);
-		user.setPassword(encPassword);
+		user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
 		userRepository.save(user);
 		return "redirect:/loginForm";
 	}
