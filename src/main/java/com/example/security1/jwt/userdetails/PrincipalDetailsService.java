@@ -3,6 +3,7 @@ package com.example.security1.jwt.userdetails;
 import com.example.security1.entity.User;
 import com.example.security1.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -28,7 +29,8 @@ public class PrincipalDetailsService implements UserDetailsService {
 
         Optional<User> userEntity = userRepository.findByUsername(username);
         if (userEntity.isPresent()) {
-            return new PrincipalDetails(userEntity.get());
+            User user = userEntity.get();
+            return new PrincipalDetails(user.getUsername(),user.getPassword(), user.getRole());
         }
         throw new UsernameNotFoundException("User not found with username: " + username);
     }

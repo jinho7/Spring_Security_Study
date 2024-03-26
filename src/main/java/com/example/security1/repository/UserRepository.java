@@ -7,7 +7,6 @@ import java.util.Optional;
 
 // 기본적인 CRUD 함수 제공 (in JpaRepository)
 public interface UserRepository extends JpaRepository<User, Integer> {
-
     // Jpa Naming 전략
     Optional<User> findByUsername(String username);
 

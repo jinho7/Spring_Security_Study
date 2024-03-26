@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -12,14 +13,11 @@ import javax.servlet.http.HttpServletRequest;
 
 import com.example.security1.jwt.dto.JwtDto;
 import com.example.security1.jwt.userdetails.PrincipalDetails;
-import com.example.security1.jwt.userdetails.PrincipalDetailsService;
+import io.jsonwebtoken.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 
-import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.SignatureException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -27,20 +25,16 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class JwtUtil {
 
-    private final PrincipalDetailsService principalDetailsService;
     private final SecretKey secretKey;
     private final Long accessExpMs;
     private final Long refreshExpMs;
     private final RedisUtil redisUtil;
 
     public JwtUtil(
-            PrincipalDetailsService principalDetailsService,
             @Value("${spring.jwt.secret}") String secret,
             @Value("${spring.jwt.token.access-expiration-time}") Long access,
             @Value("${spring.jwt.token.refresh-expiration-time}") Long refresh,
             RedisUtil redis) {
-        this.principalDetailsService = principalDetailsService;
-
         secretKey = new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8),
                 Jwts.SIG.HS256.key().build().getAlgorithm());
         accessExpMs = access;
@@ -55,7 +49,17 @@ public class JwtUtil {
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
-                .get("username", String.class);
+                .getSubject();
+    }
+
+    // JWT 토큰을 입력으로 받아 토큰의 페이로드에서 사용자 이름(roll)을 추출
+    public String getRoles(String token) throws SignatureException{
+        return Jwts.parser()
+                .setSigningKey(secretKey)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("role", String.class);
     }
 
     // JWT 토큰 클레임을 추출 -> 연결된 사용자가 스태프인지 확인
@@ -63,15 +67,8 @@ public class JwtUtil {
 //        return (Boolean)Jwts.parser().setSigningKey(secretKey).build().parseClaimsJws(token).getBody().get("is_staff");
 //    }
 
-    // JWT 토큰이 만료되었는지 확인
-    public Boolean isExpired(String token) throws SignatureException {
-        // 만료 시간을 현재 시간과 비교 -> 만료 = true 반환
-        return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getExpiration()
-                .before(new Date());
-    }
-
     // JWT 토큰의 페이로드에서 만료 시간을 검색, 밀리초 단위의 Long 값으로 반환
-    public Long getExpTime(String token) {
+    public long getExpTime(String token) {
         return Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getExpiration()
                 .getTime();
     }
@@ -81,13 +78,17 @@ public class JwtUtil {
         Instant issuedAt = Instant.now();
         Instant expiration = issuedAt.plusMillis(accessExpMs);
 
+        String authorities = principalDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .collect(Collectors.joining(","));
+
         return Jwts.builder()
                 .header()
                 .add("alg", "HS256")
                 .add("typ", "JWT")
                 .and()
-                .claim("username", principalDetails.getUsername())
-//                .claim("is_staff", principalDetails.getStaff())
+                .subject(principalDetails.getUsername())
+                .claim("role", authorities)
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiration))
                 .signWith(secretKey)
@@ -99,13 +100,17 @@ public class JwtUtil {
         Instant issuedAt = Instant.now();
         Instant expiration = issuedAt.plusMillis(refreshExpMs);
 
+        String authorities = principalDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .collect(Collectors.joining(","));
+
         String refreshToken = Jwts.builder()
                 .header()
                 .add("alg", "HS256")
                 .add("typ", "JWT")
                 .and()
-                .claim("username", principalDetails.getUsername())
-//                .claim("is_staff", principalDetails.getStaff())
+                .subject(principalDetails.getUsername())
+                .claim("role", authorities)
                 .issuedAt(Date.from(issuedAt))
                 .expiration(Date.from(expiration))
                 .signWith(secretKey)
@@ -123,11 +128,18 @@ public class JwtUtil {
 
     // 제공된 리프레시 토큰을 기반으로 JwtDto 쌍을 다시 발급
     public JwtDto reissueToken(String refreshToken) throws SignatureException {
-        UserDetails userDetails = principalDetailsService.loadUserByUsername(getUsername(refreshToken));
+        isRefreshToken(refreshToken);
+        // refreshToken에서 user 정보 뽑아서 새로 재 발금 (발급 시간, 유효 시간(reset)만 달리됨)
+        PrincipalDetails userDetails = new PrincipalDetails(
+                getUsername(refreshToken),
+                null,
+                getRoles(refreshToken)
+        );
+        log.info("[*] Token Reissue");
 
         return new JwtDto(
-                createJwtAccessToken((PrincipalDetails)userDetails),
-                createJwtRefreshToken((PrincipalDetails)userDetails)
+                createJwtAccessToken(userDetails),
+                createJwtRefreshToken(userDetails)
         );
     }
 
@@ -136,9 +148,7 @@ public class JwtUtil {
         String authorization = request.getHeader("Authorization");
 
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-
             log.warn("[*] No Token in req");
-
             return null;
         }
 
@@ -148,15 +158,34 @@ public class JwtUtil {
     }
 
     // 리프레시 토큰의 유효성을 검사 (is it in Redis?)
-    public boolean validateRefreshToken(String refreshToken) {
+    public boolean isRefreshToken(String refreshToken) {
         // refreshToken validate
-        String username = getUsername(refreshToken);
+        validateToken(refreshToken);
 
+        String username = getUsername(refreshToken);
         //redis 확인
-        if (!redisUtil.hasKey(username)) {
+        if (!redisUtil.hasKey(username) || !validateToken(refreshToken)) {
+            log.warn("[*] case : Invalid refreshToken");
             throw new NoSuchElementException("Redis에 " + username + "에 해당하는 키가 없습니다.");
         }
         return true;
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token).getPayload().getExpiration()
+                    .before(new Date());
+            return true;
+        } catch (io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
+            log.info("잘못된 JWT 서명입니다.");
+        } catch (ExpiredJwtException e) {
+            log.info("만료된 JWT 토큰입니다.");
+        } catch (UnsupportedJwtException e) {
+            log.info("지원되지 않는 JWT 토큰입니다.");
+        } catch (IllegalArgumentException e) {
+            log.info("JWT 토큰이 잘못되었습니다.");
+        }
+        return false;
     }
 
 }

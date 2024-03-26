@@ -5,6 +5,7 @@ import com.example.security1.entity.User;
 import com.example.security1.execption.ApiResponse;
 import com.example.security1.jwt.dto.JwtDto;
 import com.example.security1.jwt.userdetails.PrincipalDetails;
+import com.example.security1.jwt.util.HttpResponseUtil;
 import com.example.security1.jwt.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.NonNull;
@@ -43,40 +44,37 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
             throws AuthenticationException {
         log.info("JwtAuthenticationFilter : 로그인 시도 중");
 
+        // request에 있는 username과 password를 파싱해서 자바 Object로 받기
+        ObjectMapper om = new ObjectMapper();
+        LoginRequestDto loginRequestDto;
         try {
-            ObjectMapper om = new ObjectMapper();
-            User user = om.readValue(request.getInputStream(), User.class);
+            loginRequestDto = om.readValue(request.getInputStream(), LoginRequestDto.class);
+        } catch (IOException e) {
+            throw new AuthenticationServiceException("Error of request body.");
+        }
 
-            UsernamePasswordAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword());
+        // 유저네임패스워드 토큰 생성
+        UsernamePasswordAuthenticationToken authenticationToken =
+                new UsernamePasswordAuthenticationToken(
+                        loginRequestDto.getUsername(),
+                        loginRequestDto.getPassword());
 
             // PrincipalDetailsService의 loadUserByUsername() 함수가 실행되고 정상이면 authentication이 return됨.
             // Token 넣어서 던져서 인증 끝나면 authentication을 주고, 로그인 한 정보가 담긴다.
             // DB에 있는 username과 password가 일치한다는 뜻
-            Authentication authentication =
-                    authenticationManager.authenticate(authenticationToken);
-
-            // Testcode
-            PrincipalDetails principalDetails = (PrincipalDetails) authentication.getPrincipal();
-            log.info("로그인 완료 : " + principalDetails.getUser().getUsername());
-
-            return authentication;
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-
+            return authenticationManager.authenticate(authenticationToken);
+        // authenticate() 메서드가 호출된 직후에 해당되는데, 실제 비밀번호는 AuthenticationManager의 구현체인 ProviderManager에서 password는 제거됨.
     }
 
 
     // JWT Token 생성해서 response에 담아주기
     @Override
     protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
-                                            Authentication authResult) throws IOException, ServletException {
+                                            Authentication authResult) throws IOException{
 
         PrincipalDetails principalDetails = (PrincipalDetails) authResult.getPrincipal();
 
-        log.info("[*] Login Success! - Login with " + principalDetails.getUser().getUsername());
+        log.info("[*] Login Success! - Login with " + principalDetails.getUsername());
         JwtDto jwtDto = new JwtDto(
                 jwtUtil.createJwtAccessToken(principalDetails),
                 jwtUtil.createJwtRefreshToken(principalDetails)
@@ -85,13 +83,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         log.info("Access Token: " + jwtDto.getAccessToken());
         log.info("Refresh Token: " + jwtDto.getRefreshToken());
 
-        ObjectMapper objectMapper = new ObjectMapper();
-        String responseBody = objectMapper.writeValueAsString(ApiResponse.onSuccess(jwtDto));
-
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setStatus(HttpStatus.CREATED.value());
-        response.setCharacterEncoding("UTF-8");
-        response.getWriter().write(responseBody);
+        HttpResponseUtil.setSuccessResponse(response, HttpStatus.CREATED, jwtDto);
     }
 
     @Override
@@ -115,17 +107,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         }
         log.info("[*] Login Fail - " + errorMessage);
 
-        ObjectMapper objectMapper = new ObjectMapper();
-
-        // 응답 보내기
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getOutputStream(), ApiResponse.onFailure(
-                HttpStatus.BAD_REQUEST.name(),
-                errorMessage,
-                null
-        ));
+        HttpResponseUtil.setErrorResponse(response, HttpStatus.UNAUTHORIZED, errorMessage);
 
     }
 

@@ -7,13 +7,33 @@
 <body>
 <h1>로그인 페이지</h1>
 <hr/>
-<!-- 시큐리티는 x-www-form-url-encoded 타입만 인식 -->
-<form action="/login" method="POST">
-    <input type="text" name="username" placeholder="username"/> <br/>
-    <input type="password" name="password" placeholder="password"/> <br/>
-    <button>로그인</button>
+<form id="login">
+    <input type="text" id="username" name="username" placeholder="username"/> <br/>
+    <input type="password" id="password" name="password" placeholder="password"/> <br/>
+    <button type="button" onclick="submitLoginForm()">로그인</button>
 </form>
 
-<a href = "joinForm"> 회원가입 하기</a>
+<a href="joinForm">회원가입 하기</a>
+
+<script>
+    function submitLoginForm() {
+        var formData = {
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value
+        };
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/login", true);
+        xhr.setRequestHeader("Content-Type", "application/json");
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                console.log(xhr.responseText);
+                window.location.href = "/main"; // 메인 페이지 URL로 변경
+            }
+        };
+        xhr.send(JSON.stringify(formData));
+    }
+</script>
+
 </body>
 </html>

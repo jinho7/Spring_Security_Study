@@ -18,7 +18,6 @@ public class User {
     private String password;
     private String email;
     private String role; //ROLE_USER, ROLE_ADMIN
-
     @CreationTimestamp
     private Timestamp createDate;
 

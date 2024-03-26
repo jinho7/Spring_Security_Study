@@ -8,41 +8,46 @@ package com.example.security1.jwt.userdetails;
 
 // Security Session -> Authentication -> User Detatils (Principal Details)
 
-import com.example.security1.entity.User;
-import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
-@Getter
+@Slf4j
 public class PrincipalDetails implements UserDetails {
 
-    private User user;
+    private final String username;
+    private final String password;
+    private final String roles;
 
-    public PrincipalDetails(User user) {
-        this.user = user;
+    public PrincipalDetails(String username, String password, String roles) {
+        this.username = username;
+        this.password = password;
+        this.roles = roles;
     }
-
 
     // 해당 User의 권한을 리턴 하는 곳
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return user.getRoleList().stream()
-                .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
-    }
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority(roles));
 
-    @Override
-    public String getPassword() {
-        return user.getPassword();
+        return authorities;
     }
 
     @Override
     public String getUsername() {
-        return user.getUsername();
+        return username;
+    }
+
+    @Override
+    public String getPassword() {
+        return password;
     }
 
     @Override
