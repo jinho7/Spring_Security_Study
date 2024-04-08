@@ -2,11 +2,11 @@ package com.example.security1.service;
 
 import com.example.security1.entity.User;
 import com.example.security1.repository.UserRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
-import javax.transaction.Transactional;
 
 @RequiredArgsConstructor
 @Transactional
@@ -18,7 +18,7 @@ public class UserService{
 
     public String register(User user) {
         user.setPassword(bCryptPasswordEncoder.encode(user.getPassword()));
-        user.setRole("ROLE_USER");
+        user.setRole("USER");
         userRepository.save(user);
         return "redirect:/loginForm";
     }

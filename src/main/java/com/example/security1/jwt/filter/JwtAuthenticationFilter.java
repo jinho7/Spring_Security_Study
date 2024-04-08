@@ -8,6 +8,9 @@ import com.example.security1.jwt.userdetails.PrincipalDetails;
 import com.example.security1.jwt.util.HttpResponseUtil;
 import com.example.security1.jwt.util.JwtUtil;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,10 +22,6 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Date;
@@ -56,8 +55,8 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
         // 유저네임패스워드 토큰 생성
         UsernamePasswordAuthenticationToken authenticationToken =
                 new UsernamePasswordAuthenticationToken(
-                        loginRequestDto.getUsername(),
-                        loginRequestDto.getPassword());
+                        loginRequestDto.username(),
+                        loginRequestDto.password());
 
             // PrincipalDetailsService의 loadUserByUsername() 함수가 실행되고 정상이면 authentication이 return됨.
             // Token 넣어서 던져서 인증 끝나면 authentication을 주고, 로그인 한 정보가 담긴다.
@@ -80,8 +79,8 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
                 jwtUtil.createJwtRefreshToken(principalDetails)
         );
 
-        log.info("Access Token: " + jwtDto.getAccessToken());
-        log.info("Refresh Token: " + jwtDto.getRefreshToken());
+        log.info("Access Token: " + jwtDto.accessToken());
+        log.info("Refresh Token: " + jwtDto.refreshToken());
 
         HttpResponseUtil.setSuccessResponse(response, HttpStatus.CREATED, jwtDto);
     }

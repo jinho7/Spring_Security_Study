@@ -1,10 +1,12 @@
 package com.example.security1.jwt.util;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Component
 public class RedisUtil {
 
@@ -13,7 +15,6 @@ public class RedisUtil {
     public RedisUtil(RedisTemplate<String, Object> redisTemplate) {
         this.redisTemplate = redisTemplate;
     }
-
 
     public void save(String key, Object val, Long time, TimeUnit timeUnit) {
         redisTemplate.opsForValue().set(key, val, time, timeUnit);
@@ -28,6 +29,7 @@ public class RedisUtil {
     }
 
     public boolean delete(String key) {
+        log.info("토큰 레디스에서 삭제");
         return Boolean.TRUE.equals(redisTemplate.delete(key));
     }
 }

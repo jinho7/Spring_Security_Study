@@ -14,10 +14,9 @@ spring:
     password:
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  mvc:
-    view:
-      prefix: /templates/
-      suffix: .mustache
+#  mustache:
+#    prefix: classpath:/templates/
+#    suffix: .html
 
   jpa:
     hibernate:
@@ -34,6 +33,7 @@ spring:
       access-expiration-time: 3600000
       refresh-expiration-time: 86400000
 
-  redis:
-    host: localhost
-    port: 6379
+  data:
+    redis:
+      host: localhost
+      port: 6379

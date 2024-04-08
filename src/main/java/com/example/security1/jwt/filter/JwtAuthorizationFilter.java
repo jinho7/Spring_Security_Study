@@ -1,21 +1,23 @@
 package com.example.security1.jwt.filter;
 
 import com.example.security1.jwt.userdetails.PrincipalDetails;
+import com.example.security1.jwt.util.HttpResponseUtil;
 import com.example.security1.jwt.util.JwtUtil;
 import com.example.security1.jwt.util.RedisUtil;
 import io.jsonwebtoken.ExpiredJwtException;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 @Slf4j
@@ -54,6 +56,11 @@ public class JwtAuthorizationFilter extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
         } catch (ExpiredJwtException e) {
+            try {
+                HttpResponseUtil.setErrorResponse(response, HttpStatus.UNAUTHORIZED, "엑세스 토큰이 유효하지 않습니다.");
+            } catch (IOException ex) {
+                log.error("IOException occurred while setting error response: {}", ex.getMessage());
+            }
             log.warn("[*] case : accessToken Expired");
         }
     }

@@ -28,32 +28,31 @@ public class IndexController {
 	// localhost:8080
 	@GetMapping({"/"})
 	public String index() {
-		// 머스테치 기본폴더 src/main/resources/templates/
-		// view resolver 설정: templates (prefix), .mustache (suffix) 생략가능
-		return "index"; // src/main/resources/templates/index.mustache
+		return "index";
 	}
 
 	@GetMapping("/user")
-	public @ResponseBody String user() {
+	public String user() {
 		return "user";
 	}
 
 	@GetMapping("/admin")
-	public @ResponseBody String admin() {
+	public String admin() {
 		return "admin";
 	}
 
 	@GetMapping("/manager")
-	public @ResponseBody String manager() {
+	public String manager() {
 		return "manager";
 	}
 
-	@GetMapping("/login")
+	// jwt test
+	@GetMapping("/loginForm")
 	public String login() {
 		return "loginForm";
 	}
 
-	@GetMapping("/join")
+	@GetMapping("/joinForm")
 	public String join() {
 		return "joinForm";
 	}
@@ -63,6 +62,7 @@ public class IndexController {
 		userService.register(user);
 		return "redirect:/loginForm";
 	}
+
 	@GetMapping("/reissue")
 	public ApiResponse<JwtDto> reissueToken(@RequestHeader("RefreshToken") String refreshToken) {
 		return ApiResponse.onSuccess(jwtUtil.reissueToken(refreshToken));

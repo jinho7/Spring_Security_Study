@@ -2,12 +2,13 @@ package com.example.security1.jwt.util;
 
 import com.example.security1.execption.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 
-import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

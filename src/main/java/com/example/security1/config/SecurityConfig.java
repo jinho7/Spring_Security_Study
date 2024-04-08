@@ -12,20 +12,21 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
-import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import java.util.Arrays;
+import java.util.stream.Stream;
 
 import static org.springframework.security.config.Customizer.withDefaults;
 
 @Configuration // IoC 빈(bean)을 등록
 @EnableWebSecurity // 필터 체인 관리 시작 어노테이션
-@EnableGlobalMethodSecurity(prePostEnabled = true, securedEnabled = true) // 특정 주소 접근시 권한 및 인증을 위한 어노테이션 활성화
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -33,6 +34,7 @@ public class SecurityConfig {
     private final JwtUtil jwtUtil;
     private final RedisUtil redisUtil;
 
+    private final String[] allowedUrls = {"/", "/reissue", "/login"};
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration configuration) throws Exception {
@@ -48,33 +50,37 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
         // cors 비활성화
-        http.
-                cors(cors -> cors
-                .configurationSource(CorsConfig.apiConfigurationSource()));
-        // csrf 비활성화
-        http.
-                csrf().disable();
-        // fromLogin 비활성화
         http
-                .formLogin().disable();
-        // httpBasic 인증방식 비활성화
+                .cors(cors -> cors
+                        .configurationSource(CorsConfig.apiConfigurationSource()));
+
+        // csrf disable
         http
-                .httpBasic().disable();
+                .csrf(AbstractHttpConfigurer::disable);
+
+        // form 로그인 방식 disable
+        http
+                .formLogin(AbstractHttpConfigurer::disable);
+
+        // http basic 인증 방식 disable
+        http
+                .httpBasic(AbstractHttpConfigurer::disable);
 
         // Session을 사용하지 않고, Stateless 서버를 만듬.
-        http.
-                 sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+        http
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         // 경로별 인가
         http.
-                authorizeRequests(authorizeRequests ->
+                authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests
-                                .antMatchers("/user/**","/reissue").authenticated()
-                                .antMatchers("/manager/**").access("hasRole('ROLE_ADMIN') or hasRole('ROLE_MANAGER')")
-                                .antMatchers("/admin/**").access("hasRole('ROLE_ADMIN')")
+                                .requestMatchers("/user/**").authenticated()
+                                .requestMatchers("/manager/**").hasAnyRole("ADMIN", "MANAGE")
+                                .requestMatchers("/admin/**").hasRole("ADMIN")
+                                .requestMatchers(allowedUrls).permitAll()
                                 .anyRequest().permitAll()
-                )
-                .formLogin(withDefaults());
+                );
 
         // JWT login
         // Jwt Filter (with login)
